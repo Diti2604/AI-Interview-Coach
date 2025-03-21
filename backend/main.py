@@ -74,6 +74,7 @@ def generate_response(prompt: str):
     response = model.generate_content(prompt)
     return response.text.strip()
 
+
 @app.post("/process/")
 async def process_text(text: str):
     """Takes the text that was transcribed and gives a response."""

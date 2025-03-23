@@ -7,6 +7,11 @@ import google.generativeai as genai
 from dotenv import load_dotenv
 import os
 import uvicorn
+from sumy.parsers.plaintext import PlaintextParser
+from sumy.nlp.tokenizers import Tokenizer
+from sumy.summarizers.text_rank import TextRankSummarizer
+from gtts import gTTS
+import pygame
 
 #This function is used for loading the environmental variables
 load_dotenv()
@@ -67,20 +72,57 @@ async def transcribe_audio():
     except Exception as e:
         return {"error": str(e)}
     
+def summarize_text(text, num_sentences=3):
+    """Summarizes text using TextRank algorithm to extract key sentences."""
+    parser = PlaintextParser.from_string(text, Tokenizer("english"))
+    summarizer = TextRankSummarizer()
+    summary = summarizer(parser.document, num_sentences)
+
+    summary_sentences = [str(sentence) for sentence in summary]
+    
+    return " ".join(summary_sentences[:num_sentences])
+
 
 def generate_response(prompt: str):
-    "Generating a response based on the input previously given"
-    model = genai.GenerativeModel("gemini-2.0-flash")
-    response = model.generate_content(prompt)
-    return response.text.strip()
+    """Generate a concise and meaningful response using Gemini AI and summarize it with TextRank."""
+    try:
+        # Generate response from Gemini
+        model = genai.GenerativeModel("gemini-2.0-flash")
+        response = model.generate_content(prompt)
+        full_answer = response.text.strip()
 
+        # Summarize using TextRank
+        summarized_answer = summarize_text(full_answer, num_sentences=2)
+
+        return f"{summarized_answer} Would you like more details on this topic?"
+    
+    except Exception as e:
+        return f"Error generating response: {str(e)}"
+
+
+
+
+def text_to_speech(text, lang="en"):
+    # Convert text to speech using gTTS, the google text to speech API
+    tts = gTTS(text=text, lang=lang)
+    tts.save("output.mp3")  # Save the audio file
+
+    # Initialize pygame mixer for playing audio
+    pygame.mixer.init()
+    pygame.mixer.music.load("output.mp3")
+    pygame.mixer.music.play()
+
+    # Wait until the audio finishes playing
+    while pygame.mixer.music.get_busy():  
+        pygame.time.Clock().tick(10)
 
 @app.post("/process/")
 async def process_text(text: str):
     """Takes the text that was transcribed and gives a response."""
     response = generate_response(text)
-    return {"input": text, "response": response}
+    text_to_speech(response)
     
+    return {"input": text, "response": response}
     
 
 

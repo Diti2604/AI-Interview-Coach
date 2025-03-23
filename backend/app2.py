@@ -1,21 +1,20 @@
-# from fastapi import FastAPI
-# from fastapi.middleware.cors import CORSMiddleware
+from gtts import gTTS
+import pygame
+import os
 
-# app = FastAPI()
+def text_to_speech(text, lang="en"):
+    # Convert text to speech using gTTS
+    tts = gTTS(text=text, lang=lang)
+    tts.save("output.mp3")  # Save the audio file
 
-# # Enable CORS
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=["*"],  
-#     allow_credentials=True,
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
+    # Initialize pygame mixer for playing audio
+    pygame.mixer.init()
+    pygame.mixer.music.load("output.mp3")
+    pygame.mixer.music.play()
 
-# @app.get("/api/hello")
-# def hello():
-#     return {"message": "Hello from FastAPI!"}
+    # Wait until the audio finishes playing
+    while pygame.mixer.music.get_busy():  
+        pygame.time.Clock().tick(10)
 
-# if __name__ == "__main__":
-#     import uvicorn
-#     uvicorn.run(app, host="0.0.0.0", port=5000)
+# Example usage:
+text_to_speech("Hello, how can I assist you today?")

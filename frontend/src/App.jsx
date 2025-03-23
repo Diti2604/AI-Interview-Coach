@@ -1,21 +1,23 @@
-import { useEffect, useState } from "react";
+"use client"
+
+import { useState } from "react"
+import Login from "./components/FirstLogin"
+import Dashboard from "./components/Dashboard"
+import "./styles/App.css"
 
 function App() {
-  const [message, setMessage] = useState("");
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [user, setUser] = useState(null)
 
-  useEffect(() => {
-    fetch("http://127.0.0.1:5000/api/hello") 
-      .then((response) => response.json())
-      .then((data) => setMessage(data.message))
-      .catch((error) => console.error("Error fetching data:", error));
-  }, []);
+  const handleLogin = (userData) => {
+    setUser(userData)
+    setIsLoggedIn(true)
+  }
 
   return (
-    <div>
-      <h1>React + Vite + Python</h1>
-      <p>{message}</p>
-    </div>
-  );
+    <main className="app-container">{!isLoggedIn ? <Login onLogin={handleLogin} /> : <Dashboard user={user} />}</main>
+  )
 }
 
-export default App;
+export default App
+

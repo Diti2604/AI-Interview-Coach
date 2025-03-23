@@ -1,0 +1,36 @@
+.tabs {
+    margin-bottom: 1rem;
+  }
+  
+  .tabs-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  
+  .tab {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 2.5rem;
+    background-color: transparent;
+    color: var(--muted-foreground);
+    border: none;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+  
+  .tab:hover {
+    background-color: var(--secondary);
+  }
+  
+  .tab.active {
+    background-color: var(--secondary);
+    color: var(--secondary-foreground);
+  }
+  
+  

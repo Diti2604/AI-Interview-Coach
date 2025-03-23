@@ -105,7 +105,7 @@ function LandingPage() {
       </main>
 
       <footer className="landing-footer">
-        <p>&copy; 2023 AI Interview Coach. All rights reserved.</p>
+        <p>&copy; 2025 AI Interview Coach. All rights reserved.</p>
       </footer>
     </div>
   )

@@ -12,12 +12,23 @@ from sumy.nlp.tokenizers import Tokenizer
 from sumy.summarizers.text_rank import TextRankSummarizer
 from gtts import gTTS
 import pygame
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 
 #This function is used for loading the environmental variables
 load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Change this to your frontend URL in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Initialize Whisper Model
 model = whisper.load_model("base")
@@ -83,24 +94,44 @@ def summarize_text(text, num_sentences=3):
     return " ".join(summary_sentences[:num_sentences])
 
 
-def generate_response(prompt: str):
-    """Generate a concise and meaningful response using Gemini AI and summarize it with TextRank."""
+
+def generate_response_stream(user_input: str):
+    """Generate a structured interview response with only 3-4 key points and stream the output."""
     try:
+        # Create a structured prompt for better AI responses that requests limited points
+        prompt = f"""
+        You are an expert interviewer. The user is preparing for: {user_input}.
+        Provide ONLY the 3-4 most important points that would help them succeed.
+        Format your response as a numbered list with brief explanations for each point.
+        Be concise and focus on actionable advice.
+
+        User's Question: "{user_input}"
+        """
+        
         # Generate response from Gemini
         model = genai.GenerativeModel("gemini-2.0-flash")
         response = model.generate_content(prompt)
         full_answer = response.text.strip()
-
-        # Summarize using TextRank
-        summarized_answer = summarize_text(full_answer, num_sentences=2)
-
-        return f"{summarized_answer} Would you like more details on this topic?"
-    
+        
+        # Enforce summarization by splitting into a number of points and keeping the most important ones
+        if len(full_answer.split("\n")) > 4:  # Limit to no more than 4 points
+            full_answer = summarize_text(full_answer, num_sentences=4)
+        
+        # Stream each point (paragraph) rather than each sentence
+        for point in full_answer.split("\n"):
+            if point.strip():  # Skip empty lines
+                yield f"<p>{point.strip()}</p>"  # Wrapping each point in <p> for styling
+                import time
+                time.sleep(0.5)  # Adding a slight delay for streaming effect
+                
     except Exception as e:
-        return f"Error generating response: {str(e)}"
+        yield f"<p>Error generating response: {str(e)}</p>"
 
 
-
+@app.get("/stream-response/")
+async def stream_response(user_input: str):
+    """Stream the AI response sentence by sentence."""
+    return StreamingResponse(generate_response_stream(user_input), media_type="text/plain")
 
 def text_to_speech(text, lang="en"):
     # Convert text to speech using gTTS, the google text to speech API
@@ -117,14 +148,23 @@ def text_to_speech(text, lang="en"):
         pygame.time.Clock().tick(10)
 
 @app.post("/process/")
-async def process_text(text: str):
-    """Takes the text that was transcribed and gives a response."""
-    response = generate_response(text)
-    text_to_speech(response)
-    
-    return {"input": text, "response": response}
-    
+async def process_text(request: Request):
+    """Receives transcribed text, generates an AI response, and converts it to speech."""
+    try:
+        # Read raw text data from request body
+        text = await request.body()
+        text = text.decode("utf-8").strip()
 
+        if not text:
+            return {"error": "No input text provided"}
+
+        response = generate_response_stream(text)
+        text_to_speech(response)
+
+        return {"input": text, "response": response}
+
+    except Exception as e:
+        return {"error": str(e)}
 
 if __name__ == "__main__":
      uvicorn.run(app, host="0.0.0.0", port=5000)

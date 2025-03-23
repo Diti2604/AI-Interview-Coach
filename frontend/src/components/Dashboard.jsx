@@ -1,6 +1,5 @@
 "use client"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Routes, Route, useNavigate } from "react-router-dom"
 import Sidebar from "./Sidebar"
 import MicrophoneButton from "./MicrophoneButton"
@@ -17,77 +16,103 @@ function Dashboard({ user, onLogout }) {
   const [conversation, setConversation] = useState([])
   const [currentConversationId, setCurrentConversationId] = useState("new-conversation")
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [isStreaming, setIsStreaming] = useState(false)
+  const [isSpeaking, setIsSpeaking] = useState(false)
 
-  // Toggle listening state
-  const toggleListening = () => {
-    if (isListening) {
-      stopListening()
-    } else {
-      startListening()
+  const toggleListening = async () => {
+    if (!isListening) {
+      setIsListening(true);
+      await fetchAiResponse();
+      setIsListening(false);
     }
-  }
-
-  // Start listening (simulated)
-  const startListening = () => {
-    setIsListening(true)
-    setTranscript("")
-
-    // Simulate speech recognition with gradual text appearance
-    const fullText =
-      "Hi, I'm preparing for a job interview next week for a software developer position. Can you help me practice some common interview questions?"
-    let currentIndex = 0
-
-    const interval = setInterval(() => {
-      if (currentIndex <= fullText.length) {
-        setTranscript(fullText.substring(0, currentIndex))
-        currentIndex += 3
-      } else {
-        clearInterval(interval)
-        setIsListening(false)
-        simulateAiResponse()
+  };
+    
+  const fetchAiResponse = async () => {
+    setIsLoading(true);
+    setTranscript("");
+    setAiResponse("");
+    
+    try {
+      // Step 1: Transcribe Speech using Whisper
+      const transcribeResponse = await fetch("http://127.0.0.1:5000/transcribe/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+          
+      if (!transcribeResponse.ok) {
+        throw new Error("Error transcribing audio");
       }
-    }, 50)
-  }
-
-  // Stop listening
-  const stopListening = () => {
-    setIsListening(false)
-  }
-
-  // Simulate AI response
-  const simulateAiResponse = () => {
-    setIsLoading(true)
-
-    setTimeout(() => {
-      const response =
-        "Of course! I'd be happy to help you prepare for your software developer interview. Let's start with some common questions. First, could you tell me about your experience with programming languages and frameworks? Which ones are you most comfortable with?"
-
-      let currentIndex = 0
-      setAiResponse("")
-
-      const interval = setInterval(() => {
-        if (currentIndex <= response.length) {
-          setAiResponse(response.substring(0, currentIndex))
-          currentIndex += 3
-        } else {
-          clearInterval(interval)
-
-          // Add to conversation history
-          setConversation((prev) => [
-            ...prev,
-            {
-              id: Date.now(),
-              user: transcript,
-              ai: response,
-            },
-          ])
+          
+      const transcribeData = await transcribeResponse.json();
+      const userText = transcribeData.transcription;
+      setTranscript(userText);
+          
+      if (!userText) {
+        throw new Error("No speech detected");
+      }
+      
+      // Step 2: Start streaming the response to show typing effect
+      setIsStreaming(true);
+      
+      // Start streaming for visual effect
+      const streamResponse = await fetch(`http://127.0.0.1:5000/stream-response/?user_input=${encodeURIComponent(userText)}`);
+      
+      if (!streamResponse.ok) {
+        throw new Error("Error streaming response");
+      }
+      
+      // Read the stream chunk by chunk
+      const reader = streamResponse.body.getReader();
+      const decoder = new TextDecoder();
+      let fullResponse = "";
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) {
+          break;
         }
-      }, 30)
-
-      setIsLoading(false)
-    }, 1000)
-  }
-
+        
+        const text = decoder.decode(value);
+        fullResponse += text;
+        setAiResponse(fullResponse);
+      }
+      
+      // Step 3: After streaming is done, process text for speech
+      setIsStreaming(false);
+      setIsSpeaking(true);
+      
+      const processResponse = await fetch("http://127.0.0.1:5000/process/", {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: userText,
+      });
+      
+      if (!processResponse.ok) {
+        throw new Error("Error processing text");
+      }
+      
+      const processData = await processResponse.json();
+      
+      // After speech is done, update conversation history
+      setTimeout(() => {
+        setIsSpeaking(false);
+      }, 10000); // Approximate time for speech to complete
+      
+      setConversation(prev => [
+        ...prev,
+        { role: "user", content: userText },
+        { role: "assistant", content: fullResponse }
+      ]);
+      
+    } catch (error) {
+      console.error("Error:", error);
+      setAiResponse("Sorry, there was an error processing your request.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+      
   // Create a new conversation
   const startNewConversation = () => {
     setCurrentConversationId("new-conversation")
@@ -117,10 +142,10 @@ function Dashboard({ user, onLogout }) {
         onClose={() => setIsSidebarOpen(false)}
         onLogout={handleLogout}
       />
-
+      
       <div className="main-content">
         <ConversationHeader onMenuClick={toggleSidebar} />
-
+        
         <main className="transcript-container">
           <Routes>
             <Route
@@ -130,14 +155,15 @@ function Dashboard({ user, onLogout }) {
                   transcript={transcript}
                   aiResponse={aiResponse}
                   isLoading={isLoading}
+                  isStreaming={isStreaming}
+                  isSpeaking={isSpeaking}
                   conversation={conversation}
                 />
               }
             />
-            {/* You can add more routes here for different dashboard sections */}
           </Routes>
         </main>
-
+        
         <div className="microphone-container">
           <MicrophoneButton isListening={isListening} onClick={toggleListening} />
         </div>

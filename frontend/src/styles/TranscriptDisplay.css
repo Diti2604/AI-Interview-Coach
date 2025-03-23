@@ -95,6 +95,124 @@
     color: var(--muted-foreground);
     max-width: 24rem;
   }
+
+  /* Add this to your TranscriptDisplay.css file */
+
+.typing-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 20px;
+  background-color: #333;
+  margin-left: 4px;
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.message.assistant {
+  opacity: 1;
+  transition: opacity 0.3s ease-in-out;
+}
+
+.message.assistant.loading {
+  opacity: 0.7;
+}
+
+.loading-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.loading-indicator::after {
+  content: "...";
+  animation: ellipsis 1.5s infinite;
+  width: 24px;
+  display: inline-block;
+}
+
+/* Add these styles to your TranscriptDisplay.css file */
+
+.speaking-indicator {
+  display: flex;
+  align-items: center;
+  background-color: rgba(0, 0, 0, 0.05);
+  padding: 4px 8px;
+  border-radius: 12px;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+  color: #555;
+  width: fit-content;
+}
+
+.speaking-icon {
+  animation: pulse 1.5s infinite;
+  margin-right: 6px;
+}
+
+.speaking-text {
+  font-style: italic;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.5; }
+  50% { opacity: 1; }
+  100% { opacity: 0.5; }
+}
+
+/* Existing animations */
+.typing-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 20px;
+  background-color: #333;
+  margin-left: 4px;
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.message.assistant {
+  opacity: 1;
+  transition: opacity 0.3s ease-in-out;
+}
+
+.message.assistant.loading {
+  opacity: 0.7;
+}
+
+.loading-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.loading-indicator::after {
+  content: "...";
+  animation: ellipsis 1.5s infinite;
+  width: 24px;
+  display: inline-block;
+}
+
+@keyframes ellipsis {
+  0% { content: "."; }
+  33% { content: ".."; }
+  66% { content: "..."; }
+  100% { content: "."; }
+}
+
+@keyframes ellipsis {
+  0% { content: "."; }
+  33% { content: ".."; }
+  66% { content: "..."; }
+  100% { content: "."; }
+}
   
   @keyframes pulse {
     0%,
@@ -106,4 +224,143 @@
     }
   }
   
-  
+  /* Add these styles to your TranscriptDisplay.css file */
+
+.speaking-indicator {
+  display: flex;
+  align-items: center;
+  background-color: rgba(0, 0, 0, 0.05);
+  padding: 4px 8px;
+  border-radius: 12px;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+  color: #555;
+  width: fit-content;
+}
+
+.speaking-icon {
+  animation: pulse 1.5s infinite;
+  margin-right: 6px;
+}
+
+.speaking-text {
+  font-style: italic;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.5; }
+  50% { opacity: 1; }
+  100% { opacity: 0.5; }
+}
+
+.typing-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background-color: #333;
+  margin-left: 2px;
+  animation: blink 1s infinite;
+  vertical-align: middle;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.message.assistant {
+  opacity: 1;
+  transition: opacity 0.3s ease-in-out;
+}
+
+.message.assistant.loading {
+  opacity: 0.7;
+}
+
+.loading-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.loading-indicator::after {
+  content: "...";
+  animation: ellipsis 1.5s infinite;
+  width: 24px;
+  display: inline-block;
+}
+
+@keyframes ellipsis {
+  0% { content: "."; }
+  33% { content: ".."; }
+  66% { content: "..."; }
+  100% { content: "."; }
+}
+
+/* General styles for the transcript display */
+.transcript-display {
+  padding: 20px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* Message bubbles for conversation history */
+.conversation-history {
+  margin-bottom: 20px;
+}
+
+.message {
+  margin: 10px 0;
+}
+
+.message.assistant {
+  background-color: #f1f1f1;
+}
+
+.message.user {
+  background-color: #d1e7dd;
+}
+
+.message-content {
+  padding: 10px;
+  border-radius: 8px;
+}
+
+/* AI response styles */
+.ai-response {
+  margin-top: 20px;
+}
+
+.ai-response-content {
+  font-size: 16px;
+  line-height: 1.6;
+  color: #333;
+}
+
+/* Style for each <p> tag in the response */
+.ai-response-content p {
+  margin: 10px 0;
+  padding: 8px;
+  background-color: #f9f9f9;
+  border-radius: 5px;
+  font-style: italic;
+  color: #555;
+}
+
+/* Styling for loading state */
+.loading-indicator {
+  animation: blink 1.5s infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* Empty state when no input has been provided */
+.empty-state p {
+  color: #888;
+  font-size: 16px;
+  font-style: italic;
+}

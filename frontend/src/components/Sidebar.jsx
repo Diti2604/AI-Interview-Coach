@@ -11,7 +11,7 @@ const sampleConversations = [
   { id: 3, title: "Data Scientist Position", date: "3 days ago" },
 ]
 
-function Sidebar({ user, onNewConversation, currentConversationId, isOpen, onClose }) {
+function Sidebar({ user, onNewConversation, currentConversationId, isOpen, onClose, onLogout }) {
   // eslint-disable-next-line no-unused-vars
   const [conversations, setConversations] = useState(sampleConversations)
 
@@ -98,7 +98,7 @@ function Sidebar({ user, onNewConversation, currentConversationId, isOpen, onClo
               <span className="user-name">{user?.name || "User"}</span>
               <span className="user-email">{user?.email || "user@example.com"}</span>
             </div>
-            <button className="logout-button">
+            <button className="logout-button" onClick={onLogout}>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"

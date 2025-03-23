@@ -1,13 +1,15 @@
 "use client"
 
 import { useState } from "react"
+import { Routes, Route, useNavigate } from "react-router-dom"
 import Sidebar from "./Sidebar"
 import MicrophoneButton from "./MicrophoneButton"
 import TranscriptDisplay from "./TranscriptDisplay"
 import ConversationHeader from "./ConversationHeader"
 import "../styles/Dashboard.css"
 
-function Dashboard({ user }) {
+function Dashboard({ user, onLogout }) {
+  const navigate = useNavigate()
   const [isListening, setIsListening] = useState(false)
   const [transcript, setTranscript] = useState("")
   const [aiResponse, setAiResponse] = useState("")
@@ -99,6 +101,12 @@ function Dashboard({ user }) {
     setIsSidebarOpen(!isSidebarOpen)
   }
 
+  // Handle logout
+  const handleLogout = () => {
+    onLogout()
+    navigate("/login")
+  }
+
   return (
     <div className="dashboard">
       <Sidebar
@@ -107,18 +115,27 @@ function Dashboard({ user }) {
         currentConversationId={currentConversationId}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
+        onLogout={handleLogout}
       />
 
       <div className="main-content">
         <ConversationHeader onMenuClick={toggleSidebar} />
 
         <main className="transcript-container">
-          <TranscriptDisplay
-            transcript={transcript}
-            aiResponse={aiResponse}
-            isLoading={isLoading}
-            conversation={conversation}
-          />
+          <Routes>
+            <Route
+              path="/"
+              element={
+                <TranscriptDisplay
+                  transcript={transcript}
+                  aiResponse={aiResponse}
+                  isLoading={isLoading}
+                  conversation={conversation}
+                />
+              }
+            />
+            {/* You can add more routes here for different dashboard sections */}
+          </Routes>
         </main>
 
         <div className="microphone-container">

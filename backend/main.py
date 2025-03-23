@@ -93,8 +93,7 @@ def summarize_text(text, num_sentences=3):
     
     return " ".join(summary_sentences[:num_sentences])
 
-
-
+# Add this function to your backend code
 def generate_response_stream(user_input: str):
     """Generate a structured interview response with only 3-4 key points and stream the output."""
     try:
@@ -113,21 +112,22 @@ def generate_response_stream(user_input: str):
         response = model.generate_content(prompt)
         full_answer = response.text.strip()
         
-        # Enforce summarization by splitting into a number of points and keeping the most important ones
-        if len(full_answer.split("\n")) > 4:  # Limit to no more than 4 points
-            full_answer = summarize_text(full_answer, num_sentences=4)
+        # You can optionally force summarization if the model gives too much content
+        if len(full_answer.split("\n")) > 6:  # If more than expected points (allowing for formatting lines)
+            # Use your existing summarize_text function to limit content
+            summary = summarize_text(full_answer, num_sentences=4)
+            full_answer = summary
         
         # Stream each point (paragraph) rather than each sentence
         for point in full_answer.split("\n"):
             if point.strip():  # Skip empty lines
-                yield f"<p>{point.strip()}</p>"  # Wrapping each point in <p> for styling
+                yield point.strip() + "\n"
                 import time
-                time.sleep(0.5)  # Adding a slight delay for streaming effect
+                time.sleep(0.2)  # Slightly longer delay between points
                 
     except Exception as e:
-        yield f"<p>Error generating response: {str(e)}</p>"
-
-
+        yield f"Error generating response: {str(e)}"
+# Add this endpoint to your FastAPI app
 @app.get("/stream-response/")
 async def stream_response(user_input: str):
     """Stream the AI response sentence by sentence."""

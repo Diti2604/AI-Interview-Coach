@@ -7,6 +7,9 @@
   overflow: hidden; /* Prevent double scrollbars */
 }
 
+.response-paragraph strong {
+  font-weight: bold;
+}
 .transcript-display {
   position: absolute;
   top: 0;

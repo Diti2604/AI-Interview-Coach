@@ -2,7 +2,7 @@ import whisper
 import pyaudio
 import wave
 import torch
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 import google.generativeai as genai
 from dotenv import load_dotenv
 import os
@@ -12,11 +12,17 @@ from sumy.nlp.tokenizers import Tokenizer
 from sumy.summarizers.text_rank import TextRankSummarizer
 from gtts import gTTS
 import pygame
-from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+import asyncio
+import tempfile
+import logging  # Add logging for debugging
 
-#This function is used for loading the environmental variables
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Load environment variables
 load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
@@ -24,7 +30,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Change this to your frontend URL in production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -40,9 +46,8 @@ CHUNK = 1024
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
 RATE = 44100
-RECORD_SECONDS = 5  
+RECORD_SECONDS = 5
 OUTPUT_FILENAME = "output.wav"
-
 
 def record_audio():
     """Records audio from the microphone and saves it as a WAV file."""
@@ -63,7 +68,6 @@ def record_audio():
     stream.close()
     p.terminate()
 
-    # Save the recorded audio
     wf = wave.open(OUTPUT_FILENAME, "wb")
     wf.setnchannels(CHANNELS)
     wf.setsampwidth(p.get_sample_size(FORMAT))
@@ -75,96 +79,98 @@ def record_audio():
 async def transcribe_audio():
     """Records audio, saves it, transcribes using Whisper, and returns text."""
     try:
-        record_audio() 
+        record_audio()
         result = model.transcribe(OUTPUT_FILENAME, fp16=False)
         transcription = result["text"]
         return {"transcription": transcription}
-
     except Exception as e:
         return {"error": str(e)}
-    
+
 def summarize_text(text, num_sentences=3):
     """Summarizes text using TextRank algorithm to extract key sentences."""
     parser = PlaintextParser.from_string(text, Tokenizer("english"))
     summarizer = TextRankSummarizer()
     summary = summarizer(parser.document, num_sentences)
-
     summary_sentences = [str(sentence) for sentence in summary]
-    
     return " ".join(summary_sentences[:num_sentences])
 
-# Add this function to your backend code
-def generate_response_stream(user_input: str):
+async def generate_response_stream(user_input: str):
     """Generate a structured interview response with only 3-4 key points and stream the output."""
     try:
-        # Create a structured prompt for better AI responses that requests limited points
         prompt = f"""
         You are an expert interviewer. The user is preparing for: {user_input}.
-        Provide ONLY the 3-4 most important points that would help them succeed.
+        Provide ONLY the 1-2 most important points that would help them succeed.
         Format your response as a numbered list with brief explanations for each point.
-        Be concise and focus on actionable advice.
+        Keep it short but concise and focus on actionable advice.
 
         User's Question: "{user_input}"
         """
         
-        # Generate response from Gemini
         model = genai.GenerativeModel("gemini-2.0-flash")
         response = model.generate_content(prompt)
         full_answer = response.text.strip()
         
-        # You can optionally force summarization if the model gives too much content
-        if len(full_answer.split("\n")) > 6:  # If more than expected points (allowing for formatting lines)
-            # Use your existing summarize_text function to limit content
+        if len(full_answer.split("\n")) > 6:
             summary = summarize_text(full_answer, num_sentences=4)
             full_answer = summary
         
-        # Stream each point (paragraph) rather than each sentence
         for point in full_answer.split("\n"):
-            if point.strip():  # Skip empty lines
+            if point.strip():
                 yield point.strip() + "\n"
-                import time
-                time.sleep(0.2)  # Slightly longer delay between points
-                
+                await asyncio.sleep(0.2)
     except Exception as e:
         yield f"Error generating response: {str(e)}"
-# Add this endpoint to your FastAPI app
-@app.get("/stream-response/")
-async def stream_response(user_input: str):
-    """Stream the AI response sentence by sentence."""
-    return StreamingResponse(generate_response_stream(user_input), media_type="text/plain")
 
 def text_to_speech(text, lang="en"):
-    # Convert text to speech using gTTS, the google text to speech API
-    tts = gTTS(text=text, lang=lang)
-    tts.save("output.mp3")  # Save the audio file
+    logger.info("Starting text_to_speech with text: %s", text)
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_file:
+            temp_filename = temp_file.name
 
-    # Initialize pygame mixer for playing audio
-    pygame.mixer.init()
-    pygame.mixer.music.load("output.mp3")
-    pygame.mixer.music.play()
+        tts = gTTS(text=text, lang=lang)
+        tts.save(temp_filename)
 
-    # Wait until the audio finishes playing
-    while pygame.mixer.music.get_busy():  
-        pygame.time.Clock().tick(10)
+        pygame.mixer.init()
+        pygame.mixer.music.load(temp_filename)
+        pygame.mixer.music.play()
+
+        while pygame.mixer.music.get_busy():
+            pygame.time.Clock().tick(10)
+    except Exception as e:
+        logger.error("Error in text_to_speech: %s", str(e))
+        raise
+    finally:
+        pygame.mixer.music.stop()
+        pygame.mixer.quit()
+        if 'temp_filename' in locals():
+            try:
+                os.remove(temp_filename)
+            except Exception as e:
+                logger.error("Error deleting temporary file: %s", str(e))
 
 @app.post("/process/")
 async def process_text(request: Request):
-    """Receives transcribed text, generates an AI response, and converts it to speech."""
+    """Receives transcribed text, streams the AI response, and plays audio concurrently."""
     try:
-        # Read raw text data from request body
         text = await request.body()
         text = text.decode("utf-8").strip()
+        logger.info("Received input text: %s", text)
 
         if not text:
-            return {"error": "No input text provided"}
+            return StreamingResponse(iter(["No input text provided\n"]), media_type="text/plain")
 
-        response = generate_response_stream(text)
-        text_to_speech(response)
+        # Collect the full response from the generator
+        response = "".join([point async for point in generate_response_stream(text)])
+        logger.info("Generated response: %s", response)
 
-        return {"input": text, "response": response}
+        # Start text-to-speech in a background task with the AI response
+        asyncio.create_task(asyncio.to_thread(text_to_speech, response))
 
+        # Stream the response to the frontend immediately
+        return StreamingResponse(iter([response]), media_type="text/plain")
     except Exception as e:
-        return {"error": str(e)}
+        logger.error("Error in /process/: %s", str(e))
+        return StreamingResponse(iter([f"Error: {str(e)}\n"]), media_type="text/plain")
 
 if __name__ == "__main__":
-     uvicorn.run(app, host="0.0.0.0", port=5000)
+    uvicorn.run(app, host="0.0.0.0", port=5000)

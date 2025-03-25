@@ -1,61 +1,78 @@
-"use client"
-
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom"
-import { useState, useEffect } from "react"
-import Login from "../src/components/FirstLogin"
-import Dashboard from "./components/Dashboard"
-import LandingPage from "./components/LandingPage"
-import "./styles/App.css"
+// src/App.jsx
+import { useState, useEffect } from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import Login from "./components/FirstLogin";
+import Dashboard from "./components/Dashboard";
+import { auth, db } from "../firebase";
+import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [user, setUser] = useState(null)
+  const [user, setUser] = useState(null);
 
-  // Check if user is already logged in (e.g., from localStorage)
   useEffect(() => {
-    const savedUser = localStorage.getItem("user")
-    if (savedUser) {
-      setUser(JSON.parse(savedUser))
-      setIsLoggedIn(true)
-    }
-  }, [])
-
-  const handleLogin = (userData) => {
-    setUser(userData)
-    setIsLoggedIn(true)
-    // Save user data to localStorage for persistence
-    localStorage.setItem("user", JSON.stringify(userData))
-  }
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      console.log("onAuthStateChanged triggered, currentUser:", currentUser);
+      setUser(currentUser);
+      if (currentUser) {
+        console.log("User UID:", currentUser.uid);
+      } else {
+        console.log("No user authenticated");
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
   const handleLogout = () => {
-    setUser(null)
-    setIsLoggedIn(false)
-    localStorage.removeItem("user")
-  }
+    auth.signOut().then(() => {
+      console.log("User signed out in App.jsx");
+      setUser(null);
+    });
+  };
+
+  // eslint-disable-next-line no-unused-vars
+  const checkIfShared = async (conversationId) => {
+    console.log("Checking if conversation is shared, conversationId:", conversationId);
+    const docRef = doc(db, "conversations", conversationId);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists() && docSnap.data().shared) {
+      console.log("Conversation is shared:", docSnap.data());
+      return docSnap.data();
+    }
+    console.log("Conversation not shared or does not exist");
+    return null;
+  };
 
   return (
     <Router>
       <Routes>
-        {/* Root path shows landing page or redirects to dashboard if logged in */}
-        <Route path="/" element={isLoggedIn ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
-
-        {/* Login page */}
         <Route
           path="/login"
-          element={isLoggedIn ? <Navigate to="/dashboard" replace /> : <Login onLogin={handleLogin} />}
+          element={user ? <Navigate to="/" /> : <Login />}
         />
-
-        {/* Dashboard with nested routes */}
         <Route
-          path="/dashboard/*"
-          element={isLoggedIn ? <Dashboard user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />}
+          path="*"
+          element={
+            user ? <Dashboard user={user} onLogout={handleLogout} /> : <Navigate to="/login" />
+          }
         />
-
-        {/* Catch-all route for 404 */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route
+          path="/conversation/:conversationId"
+          element={
+            user ? (
+              <Dashboard user={user} onLogout={handleLogout} />
+            ) : (
+              <Dashboard
+                user={null}
+                onLogout={() => {}}
+                isReadOnly={true}
+              />
+            )
+          }
+        />
       </Routes>
     </Router>
-  )
+  );
 }
 
-export default App
+export default App;

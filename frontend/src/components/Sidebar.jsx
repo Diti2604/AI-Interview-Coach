@@ -1,32 +1,25 @@
+// src/components/Sidebar.jsx
 "use client";
 
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Button from "./ui/Button";
 import "../styles/Sidebar.css";
+import { db } from "../../firebase";
+import { collection, query, where, orderBy, onSnapshot } from "firebase/firestore";
 
-// Sample conversation history data with timestamps
-const sampleConversations = [
-  {
-    id: 1,
-    title: "Software Developer Interview",
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-  }, // 2 hours ago
-  {
-    id: 2,
-    title: "Product Manager Role",
-    timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000),
-  }, // 1 day ago
-  {
-    id: 3,
-    title: "Data Scientist Position",
-    timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-  }, // 3 days ago
-];
+// Debug: Log the db instance
+console.log("Imported db in Sidebar.jsx:", db);
 
 // Utility function to format time difference
 const formatTimeDifference = (timestamp) => {
+  if (!timestamp) return "Just now"; // Handle cases where timestamp might be undefined/null
+
+  // If timestamp is a Firestore Timestamp, convert to JavaScript Date
+  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+
   const now = new Date();
-  const diffMs = now - new Date(timestamp);
+  const diffMs = now - date;
   const diffSeconds = Math.floor(diffMs / 1000);
   const diffMinutes = Math.floor(diffSeconds / 60);
   const diffHours = Math.floor(diffMinutes / 60);
@@ -38,20 +31,61 @@ const formatTimeDifference = (timestamp) => {
   if (diffHours < 24)
     return `${diffHours} hour${diffHours === 1 ? "" : "s"} ago`;
   if (diffDays < 30) return `${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
-  // Add more conditions for months, years, etc., if needed
-  return timestamp.toLocaleDateString(); // Fallback to full date for older times
+  return date.toLocaleDateString(); // Fallback to full date for older times
 };
 
 function Sidebar({
   user,
+  onNewConversation,
   currentConversationId,
   isOpen,
   onClose,
-  onLogout, // Add onLogout prop here
+  onLogout,
 }) {
-  const [conversations, setConversations] = useState(sampleConversations);
+  const [conversations, setConversations] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newInterviewTitle, setNewInterviewTitle] = useState("");
+  const navigate = useNavigate();
+
+  // Fetch conversations from Firestore
+  useEffect(() => {
+    console.log("Sidebar useEffect triggered, user:", user);
+    if (!user) {
+      console.log("No user, skipping Firestore query");
+      setConversations([]);
+      return;
+    }
+
+    console.log("Fetching conversations for user.uid:", user.uid);
+    const q = query(
+      collection(db, "conversations"),
+      where("userId", "==", user.uid),
+      orderBy("timestamp", "desc")
+    );
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        console.log("Firestore snapshot received:", snapshot);
+        console.log("Snapshot docs:", snapshot.docs);
+        const fetchedConversations = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        console.log("Mapped conversations:", fetchedConversations);
+        setConversations(fetchedConversations);
+        console.log("Updated conversations:", fetchedConversations);
+      },
+      (error) => {
+        console.error("Error fetching conversations:", error);
+      }
+    );
+
+    return () => {
+      console.log("Cleaning up Firestore listener");
+      unsubscribe();
+    };
+  }, [user]);
 
   // Update the time display every minute
   useEffect(() => {
@@ -72,19 +106,20 @@ function Sidebar({
 
   const handleCreateInterview = () => {
     if (newInterviewTitle.trim()) {
-      const newInterview = {
-        id: conversations.length + 1,
-        title: newInterviewTitle,
-        timestamp: new Date(), // Store the exact creation time
-      };
-      setConversations([newInterview, ...conversations]);
+      // Instead of adding to state, call onNewConversation to start a new conversation
+      onNewConversation(newInterviewTitle);
       setIsModalOpen(false);
       setNewInterviewTitle("");
     }
   };
 
+  const handleConversationClick = (conversationId) => {
+    navigate(`/conversation/${conversationId}`);
+    onClose();
+  };
+
   const handleLogoutClick = () => {
-    onLogout(); // Call the onLogout function passed from the parent
+    onLogout();
   };
 
   return (
@@ -123,6 +158,7 @@ function Sidebar({
                 {conversations.map((conversation) => (
                   <li key={conversation.id} className="sidebar-menu-item">
                     <button
+                      onClick={() => handleConversationClick(conversation.id)}
                       className={`sidebar-menu-button ${
                         currentConversationId === conversation.id
                           ? "active"
@@ -178,10 +214,8 @@ function Sidebar({
               </svg>
             </div>
             <div className="user-info">
-              <span className="user-name">{user?.name || "User"}</span>
-              <span className="user-email">
-                {user?.email || "user@example.com"}
-              </span>
+              <span className="user-name">{user?.displayName || "User"}</span>
+              <span className="user-email">{user?.email || "user@example.com"}</span>
             </div>
             <button className="sign-out-btn" onClick={handleLogoutClick}>
               <svg
@@ -203,7 +237,7 @@ function Sidebar({
         </div>
       </aside>
 
-      {/* Modal for creating new interview (unchanged from previous black-themed version) */}
+      {/* Modal for creating new interview */}
       {isModalOpen && (
         <div className="modal-overlay" onClick={handleCloseModal}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>

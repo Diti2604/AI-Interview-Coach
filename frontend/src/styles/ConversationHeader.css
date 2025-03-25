@@ -1,70 +1,60 @@
+/* src/styles/ConversationHeader.css */
 .conversation-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1rem;
-    border-bottom: 1px solid var(--border);
-  }
-  
-  .header-left {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-  }
-  
-  .menu-button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: none;
-    border: none;
-    width: 2rem;
-    height: 2rem;
-    border-radius: 0.25rem;
-    cursor: pointer;
-  }
-  
-  .menu-button:hover {
-    background-color: var(--secondary);
-  }
-  
-  .header-left h1 {
-    font-size: 1.25rem;
-    font-weight: 600;
-  }
-  
-  .header-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-  
-  .action-button {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-  
-  .icon-button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: none;
-    border: 1px solid var(--border);
-    width: 2.25rem;
-    height: 2.25rem;
-    border-radius: 0.25rem;
-    cursor: pointer;
-  }
-  
-  .icon-button:hover {
-    background-color: var(--secondary);
-  }
-  
-  @media (min-width: 769px) {
-    .menu-button {
-      display: none;
-    }
-  }
-  
-  
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e0e0e0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.menu-button {
+  background: none;
+  border: none;
+  font-size: 1.8em;
+  cursor: pointer;
+  color: #333;
+}
+
+.conversation-header h1 {
+  margin: 0;
+  font-size: 1.6em;
+  color: #333;
+}
+
+.header-buttons {
+  display: flex;
+  gap: 15px;
+}
+
+.save-button,
+.share-button {
+  padding: 10px 20px;
+  font-size: 1.1em;
+  font-weight: 500;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.1s ease, background-color 0.3s ease;
+}
+
+.save-button {
+  background-color: #000000; /* Green, like the previous button */
+  color: white;
+}
+
+.share-button {
+  background-color: #000000; /* Blue, like the previous button */
+  color: white;
+}
+
+.save-button:hover,
+.share-button:hover {
+  transform: scale(1.05);
+}
+
+.save-button:active,
+.share-button:active {
+  transform: scale(0.95);
+}
